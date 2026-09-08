@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Controle de Receitas</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    background: #F4F6FA; color: #1B2430;
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+  .sora { font-family: 'Sora', sans-serif; }
+  #root { max-width: 440px; margin: 0 auto; min-height: 100vh; position: relative; }
+  ::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo } = React;
+
+const CATEGORIAS = [
+  { nome: 'Salário', cor: '#2E9E6D', emoji: '🏦' },
+  { nome: 'Freelance', cor: '#4C9CD9', emoji: '💼' },
+  { nome: 'Aluguel', cor: '#8A6FC4', emoji: '🏠' },
+  { nome: 'Investimentos', cor: '#C4A24C', emoji: '📈' },
+  { nome: 'Vendas', cor: '#E08E45', emoji: '🛍️' },
+  { nome: 'Outros', cor: '#8D97A5', emoji: '•••' },
+];
+const catInfo = (nome) => CATEGORIAS.find((c) => c.nome === nome) || CATEGORIAS[CATEGORIAS.length - 1];
+
+const fmt = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const hojeISO = () => new Date().toISOString().slice(0, 10);
+const mesNome = (d) => d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+const CHAVE = 'controle_receitas_v1';
+
+function carregar() {
+  try {
+    const raw = localStorage.getItem(CHAVE);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+function persistir(lista) {
+  try { localStorage.setItem(CHAVE, JSON.stringify(lista)); return true; }
+  catch { return false; }
+}
+
+function ControleReceitas() {
+  const [receitas, setReceitas] = useState(() => carregar());
+  const [mesRef, setMesRef] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [modalAberto, setModalAberto] = useState(false);
+  const [erro, setErro] = useState(null);
+  const [form, setForm] = useState({ data: hojeISO(), descricao: '', categoria: 'Salário', valor: '' });
+
+  const salvar = (lista) => {
+    setReceitas(lista);
+    const ok = persistir(lista);
+    setErro(ok ? null : 'Não foi possível salvar neste dispositivo.');
+  };
+
+  const adicionar = (e) => {
+    e.preventDefault();
+    const valorNum = parseFloat(form.valor.replace(',', '.'));
+    if (!form.descricao.trim() || isNaN(valorNum) || valorNum <= 0) return;
+    const nova = { id: crypto.randomUUID(), ...form, valor: valorNum, descricao: form.descricao.trim(), recebido: false };
+    salvar([...receitas, nova]);
+    setForm({ data: hojeISO(), descricao: '', categoria: 'Salário', valor: '' });
+    setModalAberto(false);
+  };
+
+  const alternarRecebido = (id) => salvar(receitas.map((r) => r.id === id ? { ...r, recebido: !r.recebido } : r));
+  const remover = (id) => salvar(receitas.filter((r) => r.id !== id));
+  const trocarMes = (delta) => setMesRef((d) => new Date(d.getFullYear(), d.getMonth() + delta, 1));
+
+  const doMes = useMemo(() => {
+    const ano = mesRef.getFullYear(), mes = mesRef.getMonth();
+    return receitas.filter((r) => {
+      const d = new Date(r.data + 'T00:00:00');
+      return d.getFullYear() === ano && d.getMonth() === mes;
+    }).sort((a, b) => a.recebido === b.recebido ? a.data.localeCompare(b.data) : a.recebido ? 1 : -1);
+  }, [receitas, mesRef]);
+
+  const totalPrevisto = doMes.reduce((s, r) => s + r.valor, 0);
+  const totalRecebido = doMes.filter((r) => r.recebido).reduce((s, r) => s + r.valor, 0);
+  const totalPendente = totalPrevisto - totalRecebido;
+
+  const T = { card: '#FFFFFF', soft: '#6B7785', line: '#E7EAF0', primary: '#14495B', ok: '#2E9E6D', pendente: '#C4841F' };
+
+  return (
+    <>
+      <div style={{ background: T.primary, color: '#fff', padding: '20px 20px 26px', borderRadius: '0 0 22px 22px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="sora" style={{ fontSize: 19, fontWeight: 700 }}>Controle de Receitas</span>
+          <span style={{ fontSize: 20 }}>💰</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 18 }}>
+          <button onClick={() => trocarMes(-1)} style={{ background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', color: '#fff', fontSize: 16 }}>‹</button>
+          <span style={{ fontSize: 14, textTransform: 'capitalize', minWidth: 140, textAlign: 'center' }}>{mesNome(mesRef)}</span>
+          <button onClick={() => trocarMes(1)} style={{ background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', color: '#fff', fontSize: 16 }}>›</button>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 14 }}>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>total previsto</div>
+          <div className="sora" style={{ fontSize: 30, fontWeight: 700 }}>{fmt(totalPrevisto)}</div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 14 }}>
+          <div style={{ fontSize: 13 }}>✓ recebido: {fmt(totalRecebido)}</div>
+          <div style={{ fontSize: 13 }}>⏱ pendente: {fmt(totalPendente)}</div>
+        </div>
+      </div>
+
+      <div style={{ padding: '18px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <span className="sora" style={{ fontSize: 14, fontWeight: 600 }}>Lançamentos do mês</span>
+          <button onClick={() => setModalAberto(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: T.primary, color: '#fff', border: 'none', borderRadius: 20, padding: '7px 12px', fontSize: 12.5, cursor: 'pointer' }}>
+            + nova receita
+          </button>
+        </div>
+
+        {doMes.length === 0 ? (
+          <div style={{ color: T.soft, fontSize: 13, textAlign: 'center', marginTop: 30 }}>nenhuma receita lançada neste mês</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {doMes.map((r) => (
+              <div key={r.id} style={{ background: T.card, borderRadius: 14, padding: '12px 14px', boxShadow: '0 1px 3px rgba(20,73,91,.06)', display: 'flex', alignItems: 'center', gap: 10, opacity: r.recebido ? 1 : 0.92 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${catInfo(r.categoria).cor}22`, flexShrink: 0, fontSize: 16 }}>
+                  {catInfo(r.categoria).emoji}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.descricao}</div>
+                  <div style={{ fontSize: 11, color: T.soft }}>{r.categoria} · {new Date(r.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>{fmt(r.valor)}</div>
+                  <button onClick={() => alternarRecebido(r.id)} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, border: 'none', borderRadius: 20, padding: '4px 9px', cursor: 'pointer', background: r.recebido ? '#E7F7F0' : '#FBF1E0', color: r.recebido ? T.ok : T.pendente }}>
+                    {r.recebido ? '✓ RECEBIDO' : '⏱ PENDENTE'}
+                  </button>
+                </div>
+                <button onClick={() => remover(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, padding: 2, alignSelf: 'flex-start', fontSize: 14 }}>🗑</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {erro && (
+        <div style={{ position: 'fixed', bottom: 16, left: 16, right: 16, maxWidth: 408, margin: '0 auto', background: '#FDEDEE', color: '#D9566B', fontSize: 12, padding: '8px 12px', borderRadius: 8 }}>{erro}</div>
+      )}
+
+      {modalAberto && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(27,36,48,.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 10 }} onClick={() => setModalAberto(false)}>
+          <form onClick={(e) => e.stopPropagation()} onSubmit={adicionar} style={{ background: T.card, width: '100%', maxWidth: 440, borderRadius: '20px 20px 0 0', padding: '18px 20px 26px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="sora" style={{ fontSize: 16, fontWeight: 700 }}>Nova receita</span>
+              <button type="button" onClick={() => setModalAberto(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, fontSize: 18 }}>✕</button>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, color: T.soft }}>descrição</label>
+              <input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="ex: salário de setembro" style={{ width: '100%', padding: '9px 10px', borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 13.5, marginTop: 3 }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 11, color: T.soft }}>valor (R$)</label>
+                <input value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} inputMode="decimal" placeholder="0,00" style={{ width: '100%', padding: '9px 10px', borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 13.5, marginTop: 3 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 11, color: T.soft }}>data prevista</label>
+                <input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} style={{ width: '100%', padding: '9px 10px', borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 13.5, marginTop: 3 }} />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, color: T.soft }}>categoria</label>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginTop: 6, paddingBottom: 2 }}>
+                {CATEGORIAS.map((c) => {
+                  const ativo = form.categoria === c.nome;
+                  return (
+                    <button key={c.nome} type="button" onClick={() => setForm({ ...form, categoria: c.nome })} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', opacity: ativo ? 1 : 0.5 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: `${c.cor}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', border: ativo ? `2px solid ${c.cor}` : '2px solid transparent', fontSize: 17 }}>{c.emoji}</div>
+                      <span style={{ fontSize: 9.5, color: T.soft, maxWidth: 48, textAlign: 'center' }}>{c.nome}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button type="submit" style={{ marginTop: 8, background: T.primary, color: '#fff', border: 'none', borderRadius: 10, padding: '12px 0', fontSize: 14.5, fontWeight: 600, cursor: 'pointer' }}>Salvar receita</button>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ControleReceitas />);
+</script>
+</body>
+</html>
