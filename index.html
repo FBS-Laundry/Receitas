@@ -20,18 +20,30 @@
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root" style="padding:40px 20px;text-align:center;color:#6B7785;font-family:sans-serif;">
+  Carregando…
+  <div id="erro-carregamento" style="display:none;margin-top:14px;color:#9A3324;font-size:13px;">
+    Não foi possível carregar os componentes do app. Verifique sua conexão e tente recarregar a página.
+  </div>
+</div>
 
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script>
+  window.addEventListener('error', function (e) {
+    var el = document.getElementById('erro-carregamento');
+    if (el) el.style.display = 'block';
+  }, true);
+</script>
+
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo } = React;
 
 const CATEGORIAS = [
   { nome: 'Salário', cor: '#2E9E6D', emoji: '🏦' },
-  { nome: 'Freelance', cor: '#4C9CD9', emoji: '💼' },
+  { nome: 'Freelance', cor: '#4C9CD9', emoji: '🎵' },
   { nome: 'Aluguel', cor: '#8A6FC4', emoji: '🏠' },
   { nome: 'Investimentos', cor: '#C4A24C', emoji: '📈' },
   { nome: 'Vendas', cor: '#E08E45', emoji: '🛍️' },
