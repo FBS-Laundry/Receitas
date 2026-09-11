@@ -190,8 +190,8 @@ function ControleReceitas() {
                         {catInfo(r.categoria).emoji}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.descricao}</div>
-                        <div style={{ fontSize: 11, color: T.soft }}>{r.categoria}</div>
+                        <div style={{ fontSize: 13.5, fontWeight: 500 }}>{r.descricao}</div>
+                        <div style={{ fontSize: 11, color: T.soft }}>{r.observacao ? r.observacao : r.categoria}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>{fmt(r.valor)}</div>
