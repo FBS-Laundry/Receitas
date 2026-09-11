@@ -56,6 +56,8 @@ const hojeISO = () => new Date().toISOString().slice(0, 10);
 const mesNome = (d) => d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 const CHAVE = 'controle_receitas_v1';
 
+const formVazio = { data: hojeISO(), descricao: '', categoria: 'Salário', valor: '', observacao: '' };
+
 function carregar() {
   try {
     const raw = localStorage.getItem(CHAVE);
@@ -74,8 +76,10 @@ function ControleReceitas() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [modalAberto, setModalAberto] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
+  const [detalheId, setDetalheId] = useState(null);
   const [erro, setErro] = useState(null);
-  const [form, setForm] = useState({ data: hojeISO(), descricao: '', categoria: 'Salário', valor: '' });
+  const [form, setForm] = useState(formVazio);
 
   const salvar = (lista) => {
     setReceitas(lista);
@@ -83,18 +87,39 @@ function ControleReceitas() {
     setErro(ok ? null : 'Não foi possível salvar neste dispositivo.');
   };
 
-  const adicionar = (e) => {
+  const abrirNovo = () => {
+    setEditandoId(null);
+    setForm(formVazio);
+    setModalAberto(true);
+  };
+
+  const abrirEdicao = (r) => {
+    setEditandoId(r.id);
+    setForm({ data: r.data, descricao: r.descricao, categoria: r.categoria, valor: String(r.valor), observacao: r.observacao || '' });
+    setDetalheId(null);
+    setModalAberto(true);
+  };
+
+  const salvarForm = (e) => {
     e.preventDefault();
-    const valorNum = parseFloat(form.valor.replace(',', '.'));
+    const valorNum = parseFloat(String(form.valor).replace(',', '.'));
     if (!form.descricao.trim() || isNaN(valorNum) || valorNum <= 0) return;
-    const nova = { id: crypto.randomUUID(), ...form, valor: valorNum, descricao: form.descricao.trim(), recebido: false };
-    salvar([...receitas, nova]);
-    setForm({ data: hojeISO(), descricao: '', categoria: 'Salário', valor: '' });
+
+    if (editandoId) {
+      salvar(receitas.map((r) => r.id === editandoId
+        ? { ...r, ...form, valor: valorNum, descricao: form.descricao.trim() }
+        : r));
+    } else {
+      const nova = { id: crypto.randomUUID(), ...form, valor: valorNum, descricao: form.descricao.trim(), recebido: false };
+      salvar([...receitas, nova]);
+    }
+    setForm(formVazio);
+    setEditandoId(null);
     setModalAberto(false);
   };
 
   const alternarRecebido = (id) => salvar(receitas.map((r) => r.id === id ? { ...r, recebido: !r.recebido } : r));
-  const remover = (id) => salvar(receitas.filter((r) => r.id !== id));
+  const remover = (id) => { salvar(receitas.filter((r) => r.id !== id)); setDetalheId(null); };
   const trocarMes = (delta) => setMesRef((d) => new Date(d.getFullYear(), d.getMonth() + delta, 1));
 
   const doMes = useMemo(() => {
@@ -108,6 +133,8 @@ function ControleReceitas() {
   const totalPrevisto = doMes.reduce((s, r) => s + r.valor, 0);
   const totalRecebido = doMes.filter((r) => r.recebido).reduce((s, r) => s + r.valor, 0);
   const totalPendente = totalPrevisto - totalRecebido;
+
+  const receitaDetalhe = receitas.find((r) => r.id === detalheId) || null;
 
   const T = { card: '#FFFFFF', soft: '#6B7785', line: '#E7EAF0', primary: '#14495B', ok: '#2E9E6D', pendente: '#C4841F' };
 
@@ -136,7 +163,7 @@ function ControleReceitas() {
       <div style={{ padding: '18px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span className="sora" style={{ fontSize: 14, fontWeight: 600 }}>Lançamentos do mês</span>
-          <button onClick={() => setModalAberto(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: T.primary, color: '#fff', border: 'none', borderRadius: 20, padding: '7px 12px', fontSize: 12.5, cursor: 'pointer' }}>
+          <button onClick={abrirNovo} style={{ display: 'flex', alignItems: 'center', gap: 4, background: T.primary, color: '#fff', border: 'none', borderRadius: 20, padding: '7px 12px', fontSize: 12.5, cursor: 'pointer' }}>
             + nova receita
           </button>
         </div>
@@ -146,7 +173,7 @@ function ControleReceitas() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {doMes.map((r) => (
-              <div key={r.id} style={{ background: T.card, borderRadius: 14, padding: '12px 14px', boxShadow: '0 1px 3px rgba(20,73,91,.06)', display: 'flex', alignItems: 'center', gap: 10, opacity: r.recebido ? 1 : 0.92 }}>
+              <div key={r.id} onClick={() => setDetalheId(r.id)} style={{ background: T.card, borderRadius: 14, padding: '12px 14px', boxShadow: '0 1px 3px rgba(20,73,91,.06)', display: 'flex', alignItems: 'center', gap: 10, opacity: r.recebido ? 1 : 0.92, cursor: 'pointer' }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${catInfo(r.categoria).cor}22`, flexShrink: 0, fontSize: 16 }}>
                   {catInfo(r.categoria).emoji}
                 </div>
@@ -156,11 +183,11 @@ function ControleReceitas() {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>{fmt(r.valor)}</div>
-                  <button onClick={() => alternarRecebido(r.id)} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, border: 'none', borderRadius: 20, padding: '4px 9px', cursor: 'pointer', background: r.recebido ? '#E7F7F0' : '#FBF1E0', color: r.recebido ? T.ok : T.pendente }}>
+                  <button onClick={(e) => { e.stopPropagation(); alternarRecebido(r.id); }} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, border: 'none', borderRadius: 20, padding: '4px 9px', cursor: 'pointer', background: r.recebido ? '#E7F7F0' : '#FBF1E0', color: r.recebido ? T.ok : T.pendente }}>
                     {r.recebido ? '✓ RECEBIDO' : '⏱ PENDENTE'}
                   </button>
                 </div>
-                <button onClick={() => remover(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, padding: 2, alignSelf: 'flex-start', fontSize: 14 }}>🗑</button>
+                <button onClick={(e) => { e.stopPropagation(); remover(r.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, padding: 2, alignSelf: 'flex-start', fontSize: 14 }}>🗑</button>
               </div>
             ))}
           </div>
@@ -171,11 +198,66 @@ function ControleReceitas() {
         <div style={{ position: 'fixed', bottom: 16, left: 16, right: 16, maxWidth: 408, margin: '0 auto', background: '#FDEDEE', color: '#D9566B', fontSize: 12, padding: '8px 12px', borderRadius: 8 }}>{erro}</div>
       )}
 
+      {/* Modal de detalhes */}
+      {receitaDetalhe && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(27,36,48,.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 10 }} onClick={() => setDetalheId(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: T.card, width: '100%', maxWidth: 440, borderRadius: '20px 20px 0 0', padding: '18px 20px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="sora" style={{ fontSize: 16, fontWeight: 700 }}>Detalhes da receita</span>
+              <button onClick={() => setDetalheId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, fontSize: 18 }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${catInfo(receitaDetalhe.categoria).cor}22`, fontSize: 19 }}>
+                {catInfo(receitaDetalhe.categoria).emoji}
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>{receitaDetalhe.descricao}</div>
+                <div style={{ fontSize: 12, color: T.soft }}>{receitaDetalhe.categoria}</div>
+              </div>
+            </div>
+
+            <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13.5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: T.soft }}>Valor</span>
+                <strong>{fmt(receitaDetalhe.valor)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: T.soft }}>Data prevista</span>
+                <span>{new Date(receitaDetalhe.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: T.soft }}>Status</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, borderRadius: 20, padding: '4px 9px', background: receitaDetalhe.recebido ? '#E7F7F0' : '#FBF1E0', color: receitaDetalhe.recebido ? T.ok : T.pendente }}>
+                  {receitaDetalhe.recebido ? '✓ RECEBIDO' : '⏱ PENDENTE'}
+                </span>
+              </div>
+              {receitaDetalhe.observacao && (
+                <div>
+                  <div style={{ color: T.soft, marginBottom: 4 }}>Observação</div>
+                  <div style={{ background: '#F4F6FA', borderRadius: 10, padding: '10px 12px', fontSize: 13, whiteSpace: 'pre-wrap' }}>{receitaDetalhe.observacao}</div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <button onClick={() => abrirEdicao(receitaDetalhe)} style={{ flex: 1, background: T.primary, color: '#fff', border: 'none', borderRadius: 10, padding: '11px 0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                ✎ Editar
+              </button>
+              <button onClick={() => remover(receitaDetalhe.id)} style={{ background: '#FDEDEE', color: '#D9566B', border: 'none', borderRadius: 10, padding: '11px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                🗑
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de novo lançamento / edição */}
       {modalAberto && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(27,36,48,.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 10 }} onClick={() => setModalAberto(false)}>
-          <form onClick={(e) => e.stopPropagation()} onSubmit={adicionar} style={{ background: T.card, width: '100%', maxWidth: 440, borderRadius: '20px 20px 0 0', padding: '18px 20px 26px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <form onClick={(e) => e.stopPropagation()} onSubmit={salvarForm} style={{ background: T.card, width: '100%', maxWidth: 440, borderRadius: '20px 20px 0 0', padding: '18px 20px 26px', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="sora" style={{ fontSize: 16, fontWeight: 700 }}>Nova receita</span>
+              <span className="sora" style={{ fontSize: 16, fontWeight: 700 }}>{editandoId ? 'Editar receita' : 'Nova receita'}</span>
               <button type="button" onClick={() => setModalAberto(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, fontSize: 18 }}>✕</button>
             </div>
 
@@ -210,7 +292,14 @@ function ControleReceitas() {
               </div>
             </div>
 
-            <button type="submit" style={{ marginTop: 8, background: T.primary, color: '#fff', border: 'none', borderRadius: 10, padding: '12px 0', fontSize: 14.5, fontWeight: 600, cursor: 'pointer' }}>Salvar receita</button>
+            <div>
+              <label style={{ fontSize: 11, color: T.soft }}>observação (opcional)</label>
+              <textarea value={form.observacao} onChange={(e) => setForm({ ...form, observacao: e.target.value })} placeholder="ex: valor combinado por e-mail, aguardar confirmação..." rows={3} style={{ width: '100%', padding: '9px 10px', borderRadius: 9, border: `1px solid ${T.line}`, fontSize: 13.5, marginTop: 3, fontFamily: 'inherit', resize: 'vertical' }} />
+            </div>
+
+            <button type="submit" style={{ marginTop: 8, background: T.primary, color: '#fff', border: 'none', borderRadius: 10, padding: '12px 0', fontSize: 14.5, fontWeight: 600, cursor: 'pointer' }}>
+              {editandoId ? 'Salvar alterações' : 'Salvar receita'}
+            </button>
           </form>
         </div>
       )}
