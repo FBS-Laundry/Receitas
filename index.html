@@ -130,6 +130,12 @@ function ControleReceitas() {
     }).sort((a, b) => a.recebido === b.recebido ? a.data.localeCompare(b.data) : a.recebido ? 1 : -1);
   }, [receitas, mesRef]);
 
+  const agrupadoPorDia = useMemo(() => {
+    const mapa = {};
+    doMes.forEach((r) => { (mapa[r.data] = mapa[r.data] || []).push(r); });
+    return Object.entries(mapa).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [doMes]);
+
   const totalPrevisto = doMes.reduce((s, r) => s + r.valor, 0);
   const totalRecebido = doMes.filter((r) => r.recebido).reduce((s, r) => s + r.valor, 0);
   const totalPendente = totalPrevisto - totalRecebido;
@@ -171,23 +177,32 @@ function ControleReceitas() {
         {doMes.length === 0 ? (
           <div style={{ color: T.soft, fontSize: 13, textAlign: 'center', marginTop: 30 }}>nenhuma receita lançada neste mês</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {doMes.map((r) => (
-              <div key={r.id} onClick={() => setDetalheId(r.id)} style={{ background: T.card, borderRadius: 14, padding: '12px 14px', boxShadow: '0 1px 3px rgba(20,73,91,.06)', display: 'flex', alignItems: 'center', gap: 10, opacity: r.recebido ? 1 : 0.92, cursor: 'pointer' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${catInfo(r.categoria).cor}22`, flexShrink: 0, fontSize: 16 }}>
-                  {catInfo(r.categoria).emoji}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {agrupadoPorDia.map(([data, itens]) => (
+              <div key={data}>
+                <div className="sora" style={{ fontSize: 15, fontWeight: 700, color: T.ink, marginBottom: 8, textTransform: 'capitalize' }}>
+                  {new Date(data + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit' })}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.descricao}</div>
-                  <div style={{ fontSize: 11, color: T.soft }}>{r.categoria} · {new Date(r.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {itens.map((r) => (
+                    <div key={r.id} onClick={() => setDetalheId(r.id)} style={{ background: T.card, borderRadius: 14, padding: '12px 14px', boxShadow: '0 1px 3px rgba(20,73,91,.06)', display: 'flex', alignItems: 'center', gap: 10, opacity: r.recebido ? 1 : 0.92, cursor: 'pointer' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${catInfo(r.categoria).cor}22`, flexShrink: 0, fontSize: 16 }}>
+                        {catInfo(r.categoria).emoji}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.descricao}</div>
+                        <div style={{ fontSize: 11, color: T.soft }}>{r.categoria}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>{fmt(r.valor)}</div>
+                        <button onClick={(e) => { e.stopPropagation(); alternarRecebido(r.id); }} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, border: 'none', borderRadius: 20, padding: '4px 9px', cursor: 'pointer', background: r.recebido ? '#E7F7F0' : '#FBF1E0', color: r.recebido ? T.ok : T.pendente }}>
+                          {r.recebido ? '✓ RECEBIDO' : '⏱ PENDENTE'}
+                        </button>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); remover(r.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, padding: 2, alignSelf: 'flex-start', fontSize: 14 }}>🗑</button>
+                    </div>
+                  ))}
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>{fmt(r.valor)}</div>
-                  <button onClick={(e) => { e.stopPropagation(); alternarRecebido(r.id); }} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, border: 'none', borderRadius: 20, padding: '4px 9px', cursor: 'pointer', background: r.recebido ? '#E7F7F0' : '#FBF1E0', color: r.recebido ? T.ok : T.pendente }}>
-                    {r.recebido ? '✓ RECEBIDO' : '⏱ PENDENTE'}
-                  </button>
-                </div>
-                <button onClick={(e) => { e.stopPropagation(); remover(r.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, padding: 2, alignSelf: 'flex-start', fontSize: 14 }}>🗑</button>
               </div>
             ))}
           </div>
