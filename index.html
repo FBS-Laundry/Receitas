@@ -187,7 +187,7 @@ function ControleReceitas() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {itens.map((r) => (
                     <div key={r.id} onClick={() => setDetalheId(r.id)} style={{ background: T.card, borderRadius: 14, padding: '12px 14px', boxShadow: '0 1px 3px rgba(20,73,91,.06)', display: 'flex', alignItems: 'center', gap: 10, opacity: r.recebido ? 1 : 0.92, cursor: 'pointer' }}>
-                      <div onClick={(e) => { e.stopPropagation(); alternarMarcado(r.id); }} style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: r.marcado ? '#2E9E6D' : `${catInfo(r.categoria).cor}22`, flexShrink: 0, fontSize: 16, cursor: 'pointer' }}>
+                      <div onClick={(e) => { e.stopPropagation(); alternarMarcado(r.id); }} style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: r.marcado ? '#4CB889' : `${catInfo(r.categoria).cor}22`, flexShrink: 0, fontSize: 16, cursor: 'pointer' }}>
                         {catInfo(r.categoria).emoji}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
