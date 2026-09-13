@@ -119,6 +119,7 @@ function ControleReceitas() {
   };
 
   const alternarRecebido = (id) => salvar(receitas.map((r) => r.id === id ? { ...r, recebido: !r.recebido } : r));
+  const alternarMarcado = (id) => salvar(receitas.map((r) => r.id === id ? { ...r, marcado: !r.marcado } : r));
   const remover = (id) => { salvar(receitas.filter((r) => r.id !== id)); setDetalheId(null); };
   const trocarMes = (delta) => setMesRef((d) => new Date(d.getFullYear(), d.getMonth() + delta, 1));
 
@@ -186,11 +187,11 @@ function ControleReceitas() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {itens.map((r) => (
                     <div key={r.id} onClick={() => setDetalheId(r.id)} style={{ background: T.card, borderRadius: 14, padding: '12px 14px', boxShadow: '0 1px 3px rgba(20,73,91,.06)', display: 'flex', alignItems: 'center', gap: 10, opacity: r.recebido ? 1 : 0.92, cursor: 'pointer' }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${catInfo(r.categoria).cor}22`, flexShrink: 0, fontSize: 16 }}>
+                      <div onClick={(e) => { e.stopPropagation(); alternarMarcado(r.id); }} style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: r.marcado ? '#2E9E6D' : `${catInfo(r.categoria).cor}22`, flexShrink: 0, fontSize: 16, cursor: 'pointer' }}>
                         {catInfo(r.categoria).emoji}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 500 }}>{r.descricao}</div>
+                        <div style={{ fontSize: 13.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.descricao}</div>
                         <div style={{ fontSize: 11, color: T.soft }}>{r.observacao ? r.observacao : r.categoria}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
@@ -199,7 +200,7 @@ function ControleReceitas() {
                           {r.recebido ? '✓ RECEBIDO' : '⏱ PENDENTE'}
                         </button>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); remover(r.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, padding: 2, alignSelf: 'flex-start', fontSize: 14 }}>🗑</button>
+                      <button onClick={(e) => { e.stopPropagation(); remover(r.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, padding: 2, fontSize: 14 }}>🗑</button>
                     </div>
                   ))}
                 </div>
