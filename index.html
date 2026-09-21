@@ -140,10 +140,14 @@ function ControleReceitas() {
   const totalPrevisto = doMes.reduce((s, r) => s + r.valor, 0);
   const totalRecebido = doMes.filter((r) => r.recebido).reduce((s, r) => s + r.valor, 0);
   const totalPendente = totalPrevisto - totalRecebido;
+  const totalVencido = useMemo(() => {
+    const hoje = hojeISO();
+    return receitas.filter((r) => !r.recebido && r.data < hoje).reduce((s, r) => s + r.valor, 0);
+  }, [receitas]);
 
   const receitaDetalhe = receitas.find((r) => r.id === detalheId) || null;
 
-  const T = { card: '#FFFFFF', soft: '#6B7785', line: '#E7EAF0', primary: '#14495B', ok: '#2E9E6D', pendente: '#C4841F' };
+  const T = { card: '#FFFFFF', soft: '#6B7785', line: '#E7EAF0', primary: '#14495B', ok: '#2E9E6D', pendente: '#C4841F', vencido: '#C1443A' };
 
   return (
     <>
@@ -165,6 +169,11 @@ function ControleReceitas() {
           <div style={{ fontSize: 13 }}>✓ recebido: {fmt(totalRecebido)}</div>
           <div style={{ fontSize: 13 }}>⏱ pendente: {fmt(totalPendente)}</div>
         </div>
+        {totalVencido > 0 && (
+          <div style={{ marginTop: 12, background: 'rgba(193,68,58,.22)', borderRadius: 10, padding: '8px 12px', textAlign: 'center', fontSize: 12.5, fontWeight: 600 }}>
+            ⚠ vencido a receber: {fmt(totalVencido)}
+          </div>
+        )}
       </div>
 
       <div style={{ padding: '18px 16px' }}>
@@ -185,7 +194,9 @@ function ControleReceitas() {
                   {new Date(data + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit' })}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {itens.map((r) => (
+                  {itens.map((r) => {
+                    const vencido = !r.recebido && r.data < hojeISO();
+                    return (
                     <div key={r.id} onClick={() => setDetalheId(r.id)} style={{ background: T.card, borderRadius: 14, padding: '12px 14px', boxShadow: '0 1px 3px rgba(20,73,91,.06)', display: 'flex', alignItems: 'center', gap: 10, opacity: r.recebido ? 1 : 0.92, cursor: 'pointer' }}>
                       <div onClick={(e) => { e.stopPropagation(); alternarMarcado(r.id); }} style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: r.marcado ? '#4CB889' : `${catInfo(r.categoria).cor}22`, flexShrink: 0, fontSize: 16, cursor: 'pointer' }}>
                         {catInfo(r.categoria).emoji}
@@ -196,13 +207,14 @@ function ControleReceitas() {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>{fmt(r.valor)}</div>
-                        <button onClick={(e) => { e.stopPropagation(); alternarRecebido(r.id); }} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, border: 'none', borderRadius: 20, padding: '4px 9px', cursor: 'pointer', background: r.recebido ? '#E7F7F0' : '#FBF1E0', color: r.recebido ? T.ok : T.pendente }}>
-                          {r.recebido ? '✓ RECEBIDO' : '⏱ PENDENTE'}
+                        <button onClick={(e) => { e.stopPropagation(); alternarRecebido(r.id); }} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, border: 'none', borderRadius: 20, padding: '4px 9px', cursor: 'pointer', background: r.recebido ? '#E7F7F0' : (vencido ? '#FBEAE8' : '#FBF1E0'), color: r.recebido ? T.ok : (vencido ? T.vencido : T.pendente) }}>
+                          {r.recebido ? '✓ RECEBIDO' : (vencido ? '⚠ VENCIDO' : '⏱ PENDENTE')}
                         </button>
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); remover(r.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.soft, padding: 2, fontSize: 14 }}>🗑</button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
